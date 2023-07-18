@@ -14,9 +14,11 @@ Email: aravind.ravi@uwaterloo.ca
 #import serial
 import numpy
 from sklearn.cross_decomposition import CCA
+from datetime import datetime
+import pymysql
 
 class MyOVBox(OVBox):
-        
+
 	def __init__(self):
 		OVBox.__init__(self)
 		self.signalHeader = None
@@ -75,6 +77,8 @@ class MyOVBox(OVBox):
                                 
                 
 		for chunkIndex in range( (len(self.input[0])) ):
+			timestamp = datetime.now()
+
 			if(type(self.input[0][chunkIndex]) == OVSignalHeader):
 				self.signalHeader = self.input[0].pop()
 		
@@ -96,9 +100,10 @@ class MyOVBox(OVBox):
 				result = findCorr(n_components,numpyBuffer,freq)
 				#Find the maximum canonical correlation coefficient and corresponding class for the given SSVEP/EEG data
 				max_result = max(result,key=float)
-				predictedClass = numpy.argmax(result)+1
+				predictedClass = numpy.argmax(result)
 				#Print the predicted class label
 				print(predictedClass)
+				rds(timestamp, predictedClass)
 				
 				self.stimLabel = 'OVTK_StimulationId_Label_0'+str(predictedClass)
 				self.stimCode = OpenViBE_stimulation[self.stimLabel]
@@ -116,5 +121,21 @@ class MyOVBox(OVBox):
 			end = self.getCurrentTime()
 			self.output[0].append(OVStimulationEnd(end, end))
 			print('Stopped Scenario');                            
-                                
+
+
+def rds(timestamp, predictedclass):
+    conn = pymysql.connect(host='dancingcat-mysql.cmvyrdtvtlv3.ap-northeast-2.rds.amazonaws.com', user='root',
+                           password='20232023', db='dancingCat', charset='utf8')
+    cur = conn.cursor()
+    #print(conn)
+
+    query = 'INSERT INTO predictedClass VALUES(%s, %s)'
+    data = (timestamp, predictedclass)
+    cur.execute(query, data)
+
+    #print(query)
+
+    conn.commit()
+    conn.close()
+                      
 box = MyOVBox()
